@@ -15,6 +15,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.Duration;
+import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.kafka.HasOffsetRanges;
@@ -27,7 +28,7 @@ import scala.Predef;
 import scala.Tuple2;
 import scala.collection.JavaConversions;
 
-public class SparkKafka {
+public class SparkKafkaWindow {
 	
 	private static final String topic = "KAFKA_1";
 	private static final String groupId = "kafka-spark-1";
@@ -117,6 +118,7 @@ public class SparkKafka {
 		Class recordClazz = String.class;
 		Map<String, String> kafkaParams = new HashMap<String, String>();
 		kafkaParams.put("metadata.broker.list", "10.249.73.142:9092,10.249.73.143:9092,10.249.73.144:9092");
+		
 		/*
 		Map<TopicAndPartition, Long> fromOffsets = new HashMap<TopicAndPartition, Long>();
 		TopicAndPartition topicAndPartition_0 = new TopicAndPartition(topic, 0);
@@ -133,7 +135,9 @@ public class SparkKafka {
 			}
 		});
 		
-		inputDStream.foreachRDD(new VoidFunction<JavaRDD<String>>() {
+		//这边设置一个windows,计算这个时间范围以内的数据
+		JavaDStream<String> dstream = inputDStream.window(new Duration(60 * 60 * 1000l));
+		dstream.foreachRDD(new VoidFunction<JavaRDD<String>>() {
 			private static final long serialVersionUID = 1L;
 			public void call(JavaRDD<String> rdd) throws Exception {
 				rdd.foreach(new VoidFunction<String>() {
@@ -142,7 +146,13 @@ public class SparkKafka {
 						System.out.println("message : " + message);
 					}
 				});
-				
+			}
+		});
+		
+		//这个foreach专门用来提交offset的
+		inputDStream.foreachRDD(new VoidFunction<JavaRDD<String>>() {
+			private static final long serialVersionUID = 1L;
+			public void call(JavaRDD<String> rdd) throws Exception {
 				OffsetRange[] offsets = ((HasOffsetRanges)rdd.rdd()).offsetRanges();
 				for (OffsetRange offsetRange : offsets) {
 					//topic
@@ -153,9 +163,7 @@ public class SparkKafka {
 					long fromOffset = offsetRange.fromOffset();
 					//读取的数据的offset结束位置
 					long untilOffset = offsetRange.untilOffset();
-					
 					System.out.println("topic : " + topic + " ,partitionId : " + partitionId + " ,fromOffset : " + fromOffset + " ,untilOffset : " + untilOffset);
-					
 					TopicAndPartition topicAndPartition = offsetRange.topicAndPartition();
 					Map<TopicAndPartition, Object> topicAndPartitionOffsetMap = new HashMap<TopicAndPartition, Object>();
 					topicAndPartitionOffsetMap.put(topicAndPartition, untilOffset);
