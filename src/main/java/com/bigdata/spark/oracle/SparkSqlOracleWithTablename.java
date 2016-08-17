@@ -12,11 +12,11 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 
 /**
- * spark连接oracle
+ * spark连接oracle(整个tablename)
  * @author haiswang
  *
  */
-public class SparkSqlOracle {
+public class SparkSqlOracleWithTablename {
 
 	public static void main(String[] args) {
 		
